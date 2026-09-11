@@ -13,7 +13,6 @@ from pathlib import Path
 from freeze_gate.manifest import (
     MANIFEST_FILENAME,
     MANIFEST_VERSION,
-    REQUIRED_LABEL_FIELDS,
     hash_file,
 )
 
@@ -68,9 +67,21 @@ def _check_structure(report: GateReport, manifest: dict) -> bool:
         return False
 
     core = manifest["core"]
+    if not isinstance(core, dict):
+        report.add("FG-001", "manifest structure", FAIL, "core block must be an object")
+        return False
     core_missing = [key for key in ("id", "version", "frozen_at") if not core.get(key)]
     if core_missing:
         report.add("FG-001", "manifest structure", FAIL, f"core block missing: {', '.join(core_missing)}")
+        return False
+
+    if not isinstance(manifest.get("labeling"), dict) or not isinstance(manifest.get("provenance"), dict):
+        report.add("FG-001", "manifest structure", FAIL, "labeling and provenance must be objects")
+        return False
+
+    artifacts = manifest.get("artifacts")
+    if not isinstance(artifacts, list) or not artifacts:
+        report.add("FG-001", "manifest structure", FAIL, "artifacts must be a non-empty list")
         return False
 
     report.add("FG-001", "manifest structure", PASS)
@@ -115,12 +126,27 @@ def _check_no_strays(report: GateReport, manifest: dict, core_dir: Path) -> None
         report.add("FG-003", "freeze integrity", PASS)
 
 
+def _unlabeled_fields(labeling: dict) -> list[str]:
+    """Return honest-label fields that are absent or empty.
+
+    An empty ``modifications`` list is an explicit "none" claim and is not
+    unlabeled. ``base_model`` / ``intended_use`` must be present and non-empty.
+    """
+    missing: list[str] = []
+    if not labeling.get("base_model"):
+        missing.append("base_model")
+    if labeling.get("modifications") is None:
+        missing.append("modifications")
+    if not labeling.get("intended_use"):
+        missing.append("intended_use")
+    return missing
+
+
 def _check_labeling(report: GateReport, manifest: dict) -> None:
     """FG-004: honest labeling — the required label fields are present and
     non-empty. Missing labels degrade the core to WARN: it may still verify
     byte-for-byte, but it can no longer say what it is."""
-    labeling = manifest["labeling"]
-    missing = [f for f in REQUIRED_LABEL_FIELDS if not labeling.get(f)]
+    missing = _unlabeled_fields(manifest["labeling"])
     if missing:
         report.add("FG-004", "honest labeling", WARN, f"unlabeled fields: {', '.join(missing)}")
     else:

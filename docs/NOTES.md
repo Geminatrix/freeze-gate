@@ -5,8 +5,14 @@ The normative rules live in [SPEC.md](SPEC.md); this file records the *why*.
 
 ---
 
-## Recent changes (v0.2.0 — 2026-07-11)
+## Recent changes (v0.2.0)
 
+- 📝 **CI on PR/push.** `.github/workflows/ci.yml` installs `pip install -e ".[dev]"`
+  and runs pytest on Python 3.10 and 3.12, then `freeze-gate verify --strict`
+  against the example core.
+- 📝 **FG-004 treats empty `modifications` as a "none" claim.** The gate used
+  Python truthiness, so `[]` was flagged as unlabeled — the opposite of the
+  spec. Missing/null `modifications` still WARNs.
 - 📝 **Repo built out from concept to working reference implementation.** The
   one-line README became a full project: spec, JSON Schema, Python package,
   CLI, tests, and a runnable example under `examples/ara-core-example/`.

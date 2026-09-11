@@ -20,20 +20,37 @@ from freeze_gate.verify import FAIL, WARN, run_gate
 _STATUS_ICON = {"PASS": "✓", "WARN": "!", "FAIL": "✗"}
 
 
+def _load_manifest_for_cli(core_dir: Path) -> dict | None:
+    """Load a manifest for a CLI command. Prints a short error and returns None on failure."""
+    try:
+        return load_manifest(core_dir)
+    except FileNotFoundError:
+        print(f"error: no freeze-manifest.json in {core_dir}", file=sys.stderr)
+    except json.JSONDecodeError as exc:
+        print(f"error: malformed manifest: {exc}", file=sys.stderr)
+    except OSError as exc:
+        print(f"error: cannot read manifest: {exc}", file=sys.stderr)
+    return None
+
+
 def _cmd_freeze(args: argparse.Namespace) -> int:
     labeling = {
         "base_model": args.base_model,
         "modifications": args.modification,
         "intended_use": args.intended_use,
     }
-    manifest = build_manifest(
-        core_dir=args.core_dir,
-        core_id=args.core_id,
-        core_version=args.core_version,
-        labeling=labeling,
-        parent_core=args.parent,
-        frozen_by=args.frozen_by,
-    )
+    try:
+        manifest = build_manifest(
+            core_dir=args.core_dir,
+            core_id=args.core_id,
+            core_version=args.core_version,
+            labeling=labeling,
+            parent_core=args.parent,
+            frozen_by=args.frozen_by,
+        )
+    except ValueError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
     out_path = write_manifest(manifest, args.core_dir)
     print(f"frozen: {manifest['core']['id']} v{manifest['core']['version']}")
     print(f"  artifacts: {len(manifest['artifacts'])}")
@@ -42,7 +59,9 @@ def _cmd_freeze(args: argparse.Namespace) -> int:
 
 
 def _cmd_verify(args: argparse.Namespace) -> int:
-    manifest = load_manifest(args.core_dir)
+    manifest = _load_manifest_for_cli(args.core_dir)
+    if manifest is None:
+        return 1
     report = run_gate(manifest, args.core_dir)
 
     for result in report.results:
@@ -62,10 +81,16 @@ def _cmd_verify(args: argparse.Namespace) -> int:
 
 
 def _cmd_label(args: argparse.Namespace) -> int:
-    manifest = load_manifest(args.core_dir)
-    core = manifest["core"]
-    labeling = manifest["labeling"]
-    provenance = manifest["provenance"]
+    manifest = _load_manifest_for_cli(args.core_dir)
+    if manifest is None:
+        return 1
+    try:
+        core = manifest["core"]
+        labeling = manifest["labeling"]
+        provenance = manifest["provenance"]
+    except (KeyError, TypeError):
+        print("error: manifest is missing core, labeling, or provenance", file=sys.stderr)
+        return 1
 
     if args.json:
         print(json.dumps({"core": core, "labeling": labeling, "provenance": provenance}, indent=2))

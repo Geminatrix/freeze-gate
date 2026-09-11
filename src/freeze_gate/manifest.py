@@ -16,6 +16,7 @@ MANIFEST_VERSION = "1.0"
 MANIFEST_FILENAME = "freeze-manifest.json"
 
 # Labeling fields a manifest must carry to count as honestly labeled.
+# Empty `modifications` is a valid "none" claim; only a missing/null value is unlabeled.
 REQUIRED_LABEL_FIELDS = ("base_model", "modifications", "intended_use")
 
 _CHUNK_SIZE = 1 << 20  # 1 MiB
@@ -51,6 +52,8 @@ def build_manifest(
     meaningfully frozen or verified.
     """
     core_dir = Path(core_dir)
+    if not core_dir.is_dir():
+        raise ValueError(f"{core_dir} is not a directory")
     artifacts = [
         {
             "path": path.relative_to(core_dir).as_posix(),

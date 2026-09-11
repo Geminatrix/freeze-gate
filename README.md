@@ -5,7 +5,7 @@
 [![spec](https://img.shields.io/badge/spec-manifest%20v1.0-blue)](docs/SPEC.md)
 [![python](https://img.shields.io/badge/python-3.10%2B-3776AB)](pyproject.toml)
 [![status](https://img.shields.io/badge/status-alpha-orange)](CHANGELOG.md)
-[![tests](https://img.shields.io/badge/tests-13%20passing-brightgreen)](tests/test_freeze_gate.py)
+[![ci](https://github.com/Geminatrix/freeze-gate/actions/workflows/ci.yml/badge.svg)](https://github.com/Geminatrix/freeze-gate/actions/workflows/ci.yml)
 
 When you ship a *core* — model weights, persona files, prompts, config — three questions should be answerable at any trust boundary:
 
@@ -86,7 +86,7 @@ A ready-made frozen core lives in [`examples/ara-core-example/`](examples/ara-co
 | FG-001 | Manifest structure | Malformed or wrong-version manifests | ✗ FAIL |
 | FG-002 | Artifact digests | Tampered or missing files | ✗ FAIL |
 | FG-003 | Freeze integrity | Files planted after the freeze | ✗ FAIL |
-| FG-004 | Honest labeling | Missing `base_model` / `intended_use` claims | ! WARN |
+| FG-004 | Honest labeling | Missing `base_model` / `intended_use` claims, or null/absent `modifications` (empty array = explicit "none") | ! WARN |
 | FG-005 | Provenance chain | Unattributed freezes (no `frozen_by`) | ! WARN |
 
 **Integrity failures FAIL; honesty gaps WARN.** A changed byte voids the freeze outright, while a missing label leaves the bytes intact but the story incomplete — `--strict` turns WARN into a blocking exit code for production load paths. Full semantics in the [spec](docs/SPEC.md).
@@ -97,7 +97,9 @@ A ready-made frozen core lives in [`examples/ara-core-example/`](examples/ara-co
 freeze-gate/
 ├── README.md                          ← you are here
 ├── CHANGELOG.md                       ← release history
+├── LICENSE                            ← MIT
 ├── pyproject.toml                     ← packaging + `freeze-gate` CLI entry point
+├── .github/workflows/ci.yml           ← pytest on PR/push (Python 3.10+)
 ├── docs/
 │   ├── SPEC.md                        ← normative spec: manifest v1.0 + gate checks
 │   └── NOTES.md                       ← design notes 📝 — rationale & open questions
@@ -110,7 +112,7 @@ freeze-gate/
 ├── examples/
 │   └── ara-core-example/core/         ← frozen demo core with a passing manifest
 └── tests/
-    └── test_freeze_gate.py            ← 13 end-to-end tests
+    └── test_freeze_gate.py            ← end-to-end tests (gate + CLI + example core)
 ```
 
 ## Manifest at a glance
@@ -136,7 +138,8 @@ Two details worth knowing:
 
 ```bash
 pip install -e ".[dev]"
-python -m pytest        # 13 tests, no external dependencies beyond pytest
+python -m pytest
+freeze-gate verify examples/ara-core-example/core --strict
 ```
 
 The implementation is stdlib-only (`hashlib`, `json`, `argparse`, `dataclasses`) so the gate can run anywhere Python 3.10+ runs.

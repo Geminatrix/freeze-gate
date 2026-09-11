@@ -1,6 +1,6 @@
 # freeze-gate Specification
 
-**Manifest format version:** `1.0` · **Spec status:** Draft · **Last updated:** 2026-07-11
+**Manifest format version:** `1.0` · **Spec status:** Draft · **Last updated:** 2026-09-11
 
 This document is the normative reference for the freeze manifest format and the
 gate checks. The JSON Schema in [`schema/freeze-manifest.schema.json`](../schema/freeze-manifest.schema.json)
@@ -87,10 +87,10 @@ MUST contain at least one entry — an empty core cannot be frozen.
 
 | ID | Name | Failure mode | Severity |
 |---|---|---|---|
-| **FG-001** | Manifest structure | Required keys missing, unsupported `manifest_version`, or empty `core` fields. Short-circuits all other checks. | FAIL |
+| **FG-001** | Manifest structure | Required keys missing, unsupported `manifest_version`, empty `core` fields, or an empty/non-list `artifacts` array. Short-circuits all other checks. | FAIL |
 | **FG-002** | Artifact digests | A listed artifact is missing from disk or its SHA-256 does not match. | FAIL |
 | **FG-003** | Freeze integrity | A file exists in the core that is not listed in the manifest (the bundle mutated after freeze). | FAIL |
-| **FG-004** | Honest labeling | `base_model` or `intended_use` is null/empty. | WARN |
+| **FG-004** | Honest labeling | `base_model` or `intended_use` is null/empty, or `modifications` is null/absent. An empty `modifications` array is a valid "none" claim and PASSes. | WARN |
 | **FG-005** | Provenance chain | `frozen_by` is null/empty — nobody is accountable for the freeze. | WARN |
 
 ### 4.1 Verdict

@@ -1,10 +1,14 @@
 """End-to-end tests for the freeze → verify → label flow."""
 
+from pathlib import Path
+
 import pytest
 
 from freeze_gate.manifest import build_manifest, load_manifest, write_manifest
 from freeze_gate.verify import FAIL, PASS, WARN, run_gate
 from freeze_gate.cli import main as cli_main
+
+EXAMPLE_CORE = Path(__file__).resolve().parents[1] / "examples" / "ara-core-example" / "core"
 
 
 LABELING = {
@@ -143,3 +147,102 @@ def test_cli_verify_exit_codes(core_dir, capsys):
     freeze(core_dir)
     (core_dir / "weights.bin").write_bytes(b"tampered")
     assert cli_main(["verify", str(core_dir)]) == 1
+
+
+def test_empty_modifications_is_explicit_none(core_dir):
+    """An empty modifications array is a 'none' claim, not an unlabeled field."""
+    manifest = freeze(core_dir)
+    manifest["labeling"]["modifications"] = []
+    report = run_gate(manifest, core_dir)
+    assert report.verdict == PASS
+    labeling = next(r for r in report.results if r.check_id == "FG-004")
+    assert labeling.status == PASS
+
+
+def test_missing_modifications_warns(core_dir):
+    manifest = freeze(core_dir)
+    del manifest["labeling"]["modifications"]
+    report = run_gate(manifest, core_dir)
+    assert report.verdict == WARN
+    warned = [r for r in report.results if r.status == WARN]
+    assert any(r.check_id == "FG-004" and "modifications" in r.detail for r in warned)
+
+
+def test_empty_artifacts_fails_structure(core_dir):
+    manifest = freeze(core_dir)
+    manifest["artifacts"] = []
+    report = run_gate(manifest, core_dir)
+    assert report.verdict == FAIL
+    assert report.results[0].check_id == "FG-001"
+    assert len(report.results) == 1
+
+
+def test_example_core_passes_strict_gate():
+    manifest = load_manifest(EXAMPLE_CORE)
+    report = run_gate(manifest, EXAMPLE_CORE)
+    assert report.verdict == PASS
+    assert [r.check_id for r in report.results] == [
+        "FG-001",
+        "FG-002",
+        "FG-003",
+        "FG-004",
+        "FG-005",
+    ]
+
+
+def test_cli_freeze_without_modifications_is_strict_pass(core_dir):
+    rc = cli_main(
+        [
+            "freeze",
+            str(core_dir),
+            "--core-id",
+            "plain-core",
+            "--core-version",
+            "1.0.0",
+            "--base-model",
+            "example-base-7b",
+            "--intended-use",
+            "demo",
+            "--frozen-by",
+            "pytest",
+        ]
+    )
+    assert rc == 0
+    assert cli_main(["verify", str(core_dir), "--strict"]) == 0
+
+
+def test_cli_strict_promotes_warn_to_exit_2(core_dir):
+    freeze(core_dir)
+    manifest = load_manifest(core_dir)
+    manifest["provenance"]["frozen_by"] = None
+    write_manifest(manifest, core_dir)
+    assert cli_main(["verify", str(core_dir)]) == 0
+    assert cli_main(["verify", str(core_dir), "--strict"]) == 2
+
+
+def test_cli_freeze_empty_core_fails(tmp_path):
+    empty = tmp_path / "empty"
+    empty.mkdir()
+    assert (
+        cli_main(
+            [
+                "freeze",
+                str(empty),
+                "--core-id",
+                "x",
+                "--core-version",
+                "1",
+                "--base-model",
+                "base",
+                "--intended-use",
+                "demo",
+            ]
+        )
+        == 1
+    )
+
+
+def test_cli_verify_missing_manifest(tmp_path):
+    missing = tmp_path / "core"
+    missing.mkdir()
+    assert cli_main(["verify", str(missing)]) == 1
