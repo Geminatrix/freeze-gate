@@ -1,0 +1,37 @@
+{
+  "manifest_version": "1.0",
+  "core": {
+    "id": "ara-core",
+    "version": "0.2.0",
+    "frozen_at": "2026-07-11T22:53:48+00:00"
+  },
+  "labeling": {
+    "base_model": "example-base-7b",
+    "modifications": [
+      "persona overlay: ara",
+      "system prompt pinning"
+    ],
+    "intended_use": "conversational assistant (demo)"
+  },
+  "provenance": {
+    "parent_core": "ara-core@0.1.0",
+    "frozen_by": "geminatrix"
+  },
+  "artifacts": [
+    {
+      "path": "persona.yaml",
+      "sha256": "d9f029be603710c2b6f6f3de9d515c545fe32edc4e830af78d908edb4dcefab3",
+      "bytes": 71
+    },
+    {
+      "path": "system-prompt.txt",
+      "sha256": "6aea8e4aca3b6717735f21b2d6a7d54248017b66beca10927510f6d22cc85ac9",
+      "bytes": 53
+    },
+    {
+      "path": "weights.stub",
+      "sha256": "b27f878b1427fd3ff1d51f48a729a7d781a67ee745c7e63a877d4c960f26e0fe",
+      "bytes": 71
+    }
+  ]
+}
